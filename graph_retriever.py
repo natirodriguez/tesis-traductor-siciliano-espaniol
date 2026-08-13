@@ -41,7 +41,8 @@ class GraphRetriever:
         """
         [ETAPA DE PROCESAMIENTO INTERMEDIO]
         Normalización previa del término: limpieza de espacios, 
-        estandarización a minúsculas, remoción de tildes y limpieza de apóstrofes/comillas.
+        estandarización a minúsculas, remoción de tildes, apóstrofes 
+        y signos de puntuación (puntos, comas, etc.).
         """
         if not termino:
             return ""
@@ -53,13 +54,17 @@ class GraphRetriever:
         for apotrofe in ["'", "’", "`"]:
             termino_limpio = termino_limpio.replace(apotrofe, "")
             
-        # 3. Remover tildes para robustecer la búsqueda
+        # 3. Remover signos de puntuación comunes (puntos, comas, exclamaciones, interrogaciones)
+        termino_limpio = re.sub(r'[.,;?!¿¡:]', '', termino_limpio)
+        
+        # 4. Remover tildes para robustecer la búsqueda
         termino_sin_tildes = ''.join(
             c for c in unicodedata.normalize('NFD', termino_limpio)
             if unicodedata.category(c) != 'Mn'
         )
         
-        return termino_sin_tildes
+        # Limpiar espacios múltiples que puedan haber quedado tras remover puntuación
+        return " ".join(termino_sin_tildes.split())
 
     def buscar_en_csv(self, termino_norm):
         """
@@ -137,12 +142,16 @@ class GraphRetriever:
         return []
 
     def filtrar_resultados(self, datos, termino_norm):
-        """Separa la lógica de post-procesamiento."""
-        return [
-            d for d in datos 
-            if termino_norm == self.normalizar_termino(d.get('Termino', '')) 
-            or termino_norm == self.normalizar_termino(d.get('Traduccion', ''))
-        ]
+        """Compara la versión normalizada del input con la versión normalizada del término y traducción recuperados."""
+        resultados_filtrados = []
+        for d in datos:
+            term_res_norm = self.normalizar_termino(d.get('Termino', ''))
+            trad_res_norm = self.normalizar_termino(d.get('Traduccion', ''))
+            
+            if termino_norm == term_res_norm or termino_norm == trad_res_norm:
+                resultados_filtrados.append(d)
+                
+        return resultados_filtrados
 
     def generar_variantes(self, raw, norm):
         """Encapsula la generación de strings para consulta."""

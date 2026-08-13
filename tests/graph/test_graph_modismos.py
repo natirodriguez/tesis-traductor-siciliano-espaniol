@@ -15,6 +15,10 @@ CASES_MODISMOS = [
         "input": "Chiù scuru 'i menzannotti a bit fari", 
         "esperados": {"Chiù scuru 'i menzannotti a bit fari"}
     },
+    {
+        "input": "En boca cerrada no entran moscas",
+        "esperados": {"A megghiu parola è chidda ca 'un si dici", "'A megghiu parola è chidda ca 'un si dici"}
+    }
 ]
 
 @pytest.mark.parametrize("termino, esperados", [

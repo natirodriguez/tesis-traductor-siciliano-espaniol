@@ -53,7 +53,12 @@ CASES = [
         "tipo": "buscar_modismo",
         "input": "Chiù scuru 'i menzannotti un pò fari",
         "esperados": {"Chiù scuru 'i menzannotti un pò fari"}
-    }
+    },
+    {
+        "tipo": "buscar_modismo",
+        "input": "En boca cerrada no entran moscas",
+        "esperados": {"A megghiu parola è chidda ca 'un si dici", "'A megghiu parola è chidda ca 'un si dici"},
+    },
 ]
 
 def evaluar_caso(caso, top_k=None):
