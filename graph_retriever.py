@@ -53,6 +53,8 @@ class GraphRetriever:
         # 2. Normalizar distintos tipos de apóstrofes o comillas simples comunes (' ’ `)
         for apotrofe in ["'", "’", "`"]:
             termino_limpio = termino_limpio.replace(apotrofe, "")
+
+        termino_limpio = termino_limpio.replace("ç", "c")
             
         # 3. Remover signos de puntuación comunes (puntos, comas, exclamaciones, interrogaciones)
         termino_limpio = re.sub(r'[.,;?!¿¡:]', '', termino_limpio)
@@ -112,16 +114,16 @@ class GraphRetriever:
         if not query:
             raise ValueError(f"La consulta '{tipo_query}' no existe.")
 
-        # 1. Intentar recuperación en Neo4j
+        # El CSV sólo se utiliza cuando Neo4j no está disponible.
+        if self.driver is None:
+            return self.buscar_en_csv(termino_norm)
+
+        # 1. Recuperación en Neo4j
         datos = self.buscar_en_neo4j(query, termino, termino_norm, tipo_query)
 
-        # 2. Filtrar por relevancia exacta
-        datos_filtrados = self.filtrar_resultados(datos, termino_norm)
-        if datos_filtrados:
-            return datos_filtrados
-
-        # 3. Fallback a CSV si no hay resultados en Neo4j
-        return self.buscar_en_csv(termino_norm)
+        # 2. Filtrar los resultados recuperados
+        datos_filtrados = self.filtrar_resultados(datos, termino_norm, tipo_query)
+        return datos_filtrados
 
     def buscar_en_neo4j(self, query, termino_raw, termino_norm, tipo_query):
         """Ejecuta la lógica específica de consulta al grafo."""
@@ -141,24 +143,46 @@ class GraphRetriever:
         
         return []
 
-    def filtrar_resultados(self, datos, termino_norm):
-        """Compara la versión normalizada del input con la versión normalizada del término y traducción recuperados."""
+    def filtrar_resultados(self, datos, termino_norm, tipo_query):
+        """Valida los resultados con el criterio de la consulta ejecutada."""
         resultados_filtrados = []
         for d in datos:
             term_res_norm = self.normalizar_termino(d.get('Termino', ''))
             trad_res_norm = self.normalizar_termino(d.get('Traduccion', ''))
-            
-            if termino_norm == term_res_norm or termino_norm == trad_res_norm:
+
+            if tipo_query == 'siciliano_a_espanol':
+                coincide = termino_norm == term_res_norm
+            else:
+                coincide = termino_norm in trad_res_norm or termino_norm in term_res_norm
+
+            if coincide:
                 resultados_filtrados.append(d)
                 
         return resultados_filtrados
 
     def generar_variantes(self, raw, norm):
         """Encapsula la generación de strings para consulta."""
-        return list(set([
+        variantes = [
             raw.strip(), raw.strip().lower(), norm, 
             norm.replace("'", ""), raw.strip().lstrip("'")
-        ]))
+        ]
+
+        diacriticos = {
+            "a": "áàä",
+            "e": "éèë",
+            "i": "íìï",
+            "o": "óòö",
+            "u": "úùü",
+            "n": "ñ",
+            "c": "ç",
+        }
+        for indice, caracter in enumerate(norm):
+            for reemplazo in diacriticos.get(caracter, ""):
+                variante = norm[:indice] + reemplazo + norm[indice + 1:]
+                if variante not in variantes:
+                    variantes.append(variante)
+
+        return variantes
 
     def buscar_modismo_por_tokens(self, query, termino_norm):
         """Lógica especializada para modismos."""
